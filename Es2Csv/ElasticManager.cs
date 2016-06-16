@@ -49,8 +49,8 @@ namespace Es2Csv
                .From(from)
                .Size(size)
                .Sort(s => s.Field(f => f.Field("@timestamp")))
-               .SearchType(SearchType.Scan)
-               .Scroll(scroll)
+               //.SearchType(SearchType.Scan)
+               //.Scroll(scroll)
            );
 
             if (response.Hits.Any())
