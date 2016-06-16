@@ -1,88 +1,142 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web.Helpers;
 using Nest;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Es2Csv
 {
     public interface IMapper<T> where T : class
     {
-        StringBuilder MapToCsv(ISearchResponse<T> response);
+        StringBuilder MapToCsv(ISearchResponse<T> response, Dictionary<string, string> mappings);
     }
 
+    //public class MapperSearchLogger : IMapper<SearchLogger>
+    //{
+    //    public StringBuilder MapToCsv(ISearchResponse<SearchLogger> response, Dictionary<string, string> mappings)
+    //    {
+    //        StringBuilder builder = new StringBuilder();
 
-    public class MapperEntryDocument : IMapper<EntryDocument>
+
+
+    //        var csvFile = builder.AppendLine("\nTimestamp,QueryApplication,QuerySearchText,QuerySearchDirection,QueryLevel," +
+    //                                      "QueryDimension,QueryBookIds,ResultHits,ResultIsCached,ResultBookIds,ClientIp,ClientType," +
+    //                                      "SessionId,TimeElapsed,CustomerId,CompanyId,LoginProvider,Domain,Webserver\n");
+
+    //        foreach (var doc in response.Documents)
+    //        {
+    //            var LDM = doc.Logdata.Message;
+
+    //            if (string.IsNullOrEmpty(LDM.CallDateTime))
+    //                continue;
+
+    //            csvFile.AppendLine(
+    //                $"{LDM.CallDateTime}," +
+    //                $"GOO," +
+    //                 WrapText($"{LDM.Query.SearchText}") +
+    //                 WrapText($"{LDM.Query.Params.SearchDirection}") +
+    //                 WrapText($"{LDM.Query.Level}") +
+    //                 WrapText($"{LDM.Query.DimensionType}") +
+    //                 WrapText($"{LDM.Query.BookIds}") +
+    //                $"{LDM.Result.Hits}," +
+    //                $"{LDM.Result.IsCached}," +
+    //                 WrapText($"{LDM.Result.BookIds}") +
+    //                 WrapText($"{LDM.Session.ClientIp.Trim()}") +
+    //                 WrapText($"{LDM.Session.ClientType}") +
+    //                 WrapText($"{LDM.Session.SessionId}") +
+    //                 WrapText($"{LDM.CallDuration}") +
+    //                 WrapText($"{LDM.Session.CustomerId}") +
+    //                 WrapText($"{LDM.Session.CompanyId}") +
+    //                 WrapText($"{LDM.Session.LoginProvider}") +
+    //                WrapText($"{LDM.HostName}") +
+    //                $"IP-0A0001E3");
+    //        }
+
+    //        return csvFile;
+    //    }
+
+    //    public string WrapText(string text)
+    //    {
+    //        return $"\"{text}\",";
+    //    }
+    //}
+
+
+    public class Mapper : IMapper<Object>
     {
-        public StringBuilder MapToCsv(ISearchResponse<EntryDocument> response)
-        {
-            var csv = new StringBuilder();
-            string csvFormatEntry = "IdLemmaPos,IdLemmaRef,IdLemmaDescriptionRef,LemmaIdRef,HeadPosShortNameGyl," +
-                                    "HeadWord,IdBook,IdEntry,PrioritizeWhenLemma.Any(),SenseCount,TimeStamp,Unbound";
+        /// <summary>
+        ///     Map using test (inline) mappings
+        /// </summary>
 
-            csv.Append(csvFormatEntry + "\n \n");
+        //public StringBuilder MapToCsv2(ISearchResponse<object> response)
+        //{
+        //    StringBuilder builder = new StringBuilder();
 
-            if (response.Hits != null)
-                foreach (var doc in response.Documents)
-                {
-                    var csvFormatResponseEntry = string.Format(
-                         "{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}\n",
-                         doc.EntryIdLemma.IdLemmaPos, doc.EntryIdLemma.IdLemmaRef,
-                         doc.EntryIdLemma.IdLemmaDescriptionRef, doc.EntryIdLemma.LemmaIdRef, doc.HeadPosShortNameGyl,
-                         doc.HeadWord, doc.IdBook, doc.IdEntry, doc.PrioritizeWhenLemma.Any(), doc.SenseCount,
-                         doc.TimeStamp, doc.Unbound);
+        //    var csvFormat = "Timestamp,QueryApplication,QuerySearchText,QuerySearchDirection,QueryLevel," +
+        //                    "QueryDimension,QueryBookIds,ResultHits,ResultIsCached,ResultBookIds,ClientIp,ClientType," +
+        //                    "SessionId,TimeElapsed,CustomerId,CompanyId,LoginProvider,Domain,Webserver";
 
-                    csv.Append(csvFormatResponseEntry);
-                }
-            return csv;
+        //    var csvFile = builder.AppendLine($"\n{csvFormat}\n");
 
-        }
-    }
+        //    foreach (var doc in response.Documents)
+        //    {
 
+        //        csvFile.AppendLine("");
+        //    }
 
-    public class MapperSearchLogger : IMapper<SearchLogger>
-    {
-        public StringBuilder MapToCsv(ISearchResponse<SearchLogger> response)
+        //    return csvFile;
+        //}
+
+        public StringBuilder MapToCsv(ISearchResponse<object> response, Dictionary<string, string> mappings)
         {
             StringBuilder builder = new StringBuilder();
 
-            var csvFile = builder.AppendLine("\nTimestamp,QueryApplication,QuerySearchText,QuerySearchDirection,QueryLevel," +
-                                          "QueryDimension,QueryBookIds,ResultHits,ResultIsCached,ResultBookIds,ClientIp,ClientType," +
-                                          "SessionId,TimeElapsed,CustomerId,CompanyId,LoginProvider,Domain,Webserver");
+            var raw = response?.Hits.Select(x => x.Source).ToList();
 
-            foreach (var doc in response.Documents)
-            {
-                var LDM = doc.Logdata.Message;
+            var csvFormat = string.Join(",", mappings.Values);
+            builder.AppendLine(csvFormat);
 
-                if(string.IsNullOrEmpty(LDM.CallDateTime))
-                    continue;
+            // foreach log/json row
+            if (raw != null)
+                foreach (var o in raw)
+                {
+                    Dictionary<string, string> csv = new Dictionary<string, string>();
+                    var dict = JsonHelper.DeserializeAndFlatten(o.ToString());
+                    var flat = JObject.FromObject(dict);
 
-                csvFile.AppendLine(
-                    $"{LDM.CallDateTime}," +
-                    $"GOO," +
-                    $"{LDM.Query.SearchText}," +
-                    $"{LDM.Query.Params.SearchDirection}," +
-                    $"{LDM.Query.Level}," +
-                    $"{LDM.Query.DimensionType}," +
-                    $"{LDM.Query.BookIds}," +
-                    $"{LDM.Result.Hits}," +
-                    $"{LDM.Result.IsCached}," +
-                    $"{LDM.Result.BookIds}," +
-                    $"{LDM.Session.ClientIp}," +
-                    $"{LDM.Session.ClientType}," +
-                    $"{LDM.Session.SessionId}," +
-                    $"{LDM.CallDuration}," +
-                    $"{LDM.Session.CustomerId}," +
-                    $"{LDM.Session.CompanyId}," +
-                    $"{LDM.Session.LoginProvider}," +
-                    $"{LDM.HostName}," +
-                    $"IP-0A0001E3");
-            }
+                    // for each property
+                    foreach (var mappingFrom in mappings.Keys)
+                    {
+                        // check if the json object contains the property, select the token
+                        JToken token;
+                        flat.TryGetValue(mappingFrom, StringComparison.CurrentCultureIgnoreCase, out token);
 
-            return csvFile;
+                        if (token != null)
+                        {
+                            // if it does,..replace the old propertyname with the one defined in our mapping
+                            string mappingTo;
+                            if (mappings.TryGetValue(mappingFrom, out mappingTo))
+                                csv.Add(mappingTo, $"\"{token.Value<string>()?.Trim()}\"");
+                        }
+                        else
+                        {
+                            string mappingTo;
+                            if (mappings.TryGetValue(mappingFrom, out mappingTo))
+                                csv.Add(mappingTo, $"\"{mappingFrom}\"");
+                        }
+                    }
+                    builder.AppendLine(string.Join(",", csv.Values));
+                }
+            return builder;
+        }
+        public string WrapText(string text)
+        {
+            return $"\"{text}\",";
         }
     }
-
-
 }

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Elasticsearch.Net;
 using Nest;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -36,41 +37,53 @@ namespace Es2Csv
         public ConnectionSettings Settings { get; set; }
         public ElasticClient Client { get; set; }
 
-        public ElasticManager(Uri node = null)
+        public ISearchResponse<Object> EntrySearch(int from, int size, string index, string type, Dictionary<string, string> mappings)
         {
-            //NodeUri = node ?? new Uri("http://192.168.99.100:9200");
-            NodeUri = node ?? new Uri("http://54.171.247.56:9200");
-
-
             Settings = new ConnectionSettings(NodeUri);
             Client = new ElasticClient(Settings);
+            var scroll = 1;
 
-        }
-
-
-        public ISearchResponse<SearchLogger> EntrySearchByTimestamp(int from, int size, string index, string type)
-        {
-            var response = Client.Search<SearchLogger>(e => e
+            var response = Client.Search<Object>(e => e
                .Index(index)
                .Type(type)
                .From(from)
                .Size(size)
                .Sort(s => s.Field(f => f.Field("@timestamp")))
+               .SearchType(SearchType.Scan)
+               .Scroll(scroll)
            );
-            //var dome = (Newtonsoft.Json.Linq.JObject)response2.Documents.FirstOrDefault();
 
-            var mapper = new MapperSearchLogger();
-            var csv = mapper.MapToCsv(response);
+            if (response.Hits.Any())
+            {
+                //do
+                //{
+                //    var result = response;
+                //    result = Client.Scroll<Object>(s => s
+                //        .Scroll(scroll)
+                //        .ScrollId(result.ScrollId)
+                //    );
+                //    if (response.Documents.Any())
+                //        indexResult = this.IndexSearchResults(searchResult, observer, toIndex, page);
+                //    page++;
 
-            //or
 
-            //IMapper mapper = new MapperGyldendalLogs();
-            //var csv = mapper.MapToCsv(response);
-            var filename =
-                $"c:\\users\\hsm\\documents\\visual studio 2015\\Projects\\Es2Csv\\Es2Csv\\searchlogger.{index}.csv";
-            File.AppendAllText(filename, csv.ToString(), Encoding.UTF8);
+                //      se:         http://stackoverflow.com/questions/31327814/scroll-example-in-elasticsearch-nest-api
+                //}
 
-            return response;
+                var mapper = new Mapper();
+                var csv = mapper.MapToCsv(response, mappings);
+                string csvString = csv.ToString();
+                var filename = $"c:\\users\\hsm\\documents\\visual studio 2015\\Projects\\Es2Csv\\Es2Csv\\Logs\\searchlogger.{index}.csv";
+                File.AppendAllText(filename, csvString, Encoding.UTF8);
+                return response;
+            }
+            else
+            {
+                var msg = "could not find any searchResponse, please check your config-file or Elasticsearch data";
+                Console.WriteLine(msg);
+                return null;
+            }
+
         }
     }
 }
