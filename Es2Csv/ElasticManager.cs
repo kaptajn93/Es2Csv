@@ -61,7 +61,6 @@ namespace Es2Csv
                 var csv = mapper.MapToCsv(hits, mappings);
                 string csvString = csv.ToString();
                 var filename = $"{filePath}{index}.csv";
-                    //$"c:\\users\\hsm\\documents\\visual studio 2015\\Projects\\Es2Csv_Files\\{index}.csv";
                 File.AppendAllText(filename, csvString, Encoding.UTF8);
                 return response;
             }
