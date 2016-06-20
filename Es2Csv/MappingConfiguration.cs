@@ -11,5 +11,7 @@ namespace Es2Csv
         public int From { get; set; }
         public int Size { get; set; }
         public string Type { get; set; }
+        public string SortBy { get; set; }
+        public string FilePath { get; set; }
     }
 }

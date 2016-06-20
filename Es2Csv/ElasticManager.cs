@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Elasticsearch.Net;
@@ -37,43 +38,30 @@ namespace Es2Csv
         public ConnectionSettings Settings { get; set; }
         public ElasticClient Client { get; set; }
 
-        public ISearchResponse<Object> EntrySearch(int from, int size, string index, string type, Dictionary<string, string> mappings)
+        public ISearchResponse<Object> EntrySearch(int from, int size, string index, string type, Dictionary<string, string> mappings, string sortBy, string filePath)
         {
             Settings = new ConnectionSettings(NodeUri);
             Client = new ElasticClient(Settings);
-            var scroll = 1;
-
+            var hits = new List<IHit<object>>();
             var response = Client.Search<Object>(e => e
                .Index(index)
                .Type(type)
                .From(from)
-               .Size(size)
-               .Sort(s => s.Field(f => f.Field("@timestamp")))
-               //.SearchType(SearchType.Scan)
-               //.Scroll(scroll)
+               .Size(10000)
+               .Scroll("2m")
+               .Sort(s => s.Field(f => f.Field(sortBy)))
            );
 
-            if (response.Hits.Any())
+            hits.AddRange(response.Hits);
+            Scroll(response.ScrollId, ref hits);
+
+            if (hits.Any())
             {
-                //do
-                //{
-                //    var result = response;
-                //    result = Client.Scroll<Object>(s => s
-                //        .Scroll(scroll)
-                //        .ScrollId(result.ScrollId)
-                //    );
-                //    if (response.Documents.Any())
-                //        indexResult = this.IndexSearchResults(searchResult, observer, toIndex, page);
-                //    page++;
-
-
-                //      se:         http://stackoverflow.com/questions/31327814/scroll-example-in-elasticsearch-nest-api
-                //}
-
                 var mapper = new Mapper();
-                var csv = mapper.MapToCsv(response, mappings);
+                var csv = mapper.MapToCsv(hits, mappings);
                 string csvString = csv.ToString();
-                var filename = $"c:\\users\\hsm\\documents\\visual studio 2015\\Projects\\Es2Csv\\Es2Csv\\Logs\\searchlogger.{index}.csv";
+                var filename = $"{filePath}{index}.csv";
+                    //$"c:\\users\\hsm\\documents\\visual studio 2015\\Projects\\Es2Csv_Files\\{index}.csv";
                 File.AppendAllText(filename, csvString, Encoding.UTF8);
                 return response;
             }
@@ -83,7 +71,26 @@ namespace Es2Csv
                 Console.WriteLine(msg);
                 return null;
             }
+        }
+
+        private void Scroll(string scrollId, ref List<IHit<object>> hits)
+        {
+            Console.WriteLine("Start scroll using id: " + scrollId + " ->  current count: " + hits.Count);
+
+            if (!string.IsNullOrWhiteSpace(scrollId))
+            {
+                var scrollResponse = Client.Scroll<object>("4s", scrollId);
+                if (scrollResponse.Hits.Any())
+                {
+                    hits.AddRange(scrollResponse.Hits);
+                    Console.WriteLine($"Added {hits.Count} documents");
+
+                    if (!string.IsNullOrEmpty(scrollResponse.ScrollId))
+                        Scroll(scrollId, ref hits);
+                }
+            }
 
         }
+
     }
 }

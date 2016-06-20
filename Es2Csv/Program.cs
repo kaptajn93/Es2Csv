@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -56,6 +57,11 @@ namespace Es2Csv
                     WriteMissingArg("type");
                 else if (_config.Size <= 0)
                     WriteMissingArg("size");
+                else if (_config.SortBy == null)
+                    WriteMissingArg("sortBy");
+                else if (_config.FilePath == null)
+                    WriteMissingArg("filePath");
+
                 #endregion
 
                 else
@@ -65,10 +71,16 @@ namespace Es2Csv
                     var from = config.From;
                     var type = config.Type;
                     var mappings = config.Mappings;
+                    var sortBy = config.SortBy;
+                    var filePath = config.FilePath;
                     _manager.NodeUri = config.Uri;
                     try
                     {
-                        _manager.EntrySearch(from, size, index, type, mappings);
+                        Measure(() =>
+                        {
+                            _manager.EntrySearch(from, size, index, type, mappings, sortBy, filePath);
+                        });
+
                     }
                     catch (Exception ex)
                     {
@@ -82,14 +94,20 @@ namespace Es2Csv
             {
                 Console.WriteLine("Need filepath to your config-file. Please enter: \"Es2Csv.exe -c \"your-config-file-path\"\"");
             }
+        }
 
+        private static void Measure(Action action)
+        {
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
 
-            //if (args != null)
-            //{
-            //    string filepath = $"\"@{args.ToString()}\"";
-            //    //string filepath = @"C:\temp\Es2Csv.config";
-            //    var config = getFile(filepath);
-            //}
+            action.Invoke();
+
+            TimeSpan ts = stopWatch.Elapsed;
+
+            // Format and display the TimeSpan value. 
+            string elapsedTime = $"{ts.Hours:00}:{ts.Minutes:00}:{ts.Seconds:00}.{ts.Milliseconds / 10:00}";
+            Console.WriteLine("Elapsed: " + elapsedTime);
 
         }
 
@@ -110,10 +128,6 @@ namespace Es2Csv
                 FileNotFoundException fileNotFound = new FileNotFoundException("invalid filepat", ex);
                 throw fileNotFound;
             }
-
-
-
-
 
             return _config;
         }
