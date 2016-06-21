@@ -50,7 +50,7 @@ As you can see it is possible to go down nested objects as well as setting defau
  - propperties to the right are what you are mapping them to be in the csv-file.
 
 
-### To run the program do the fallowing:
+### To run the program do the following:
 
 - open cmd prompt.
 - navigate to where the Es2Csv.exe file is using cd.
